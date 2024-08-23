@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <title>Chat Application</title>
+</head>
+<body>
+<div id="chat">
+  <input type="text" id="username" placeholder="Entrer le nom" />
+
+  <!-- Zone de messages -->
+  <div id="messageArea">
+    <!-- Liste des messages affichés -->
+    <ul id="messageList"></ul>
+  </div>
+
+  <input type="text" id="message" placeholder="Ecrire le message..." />
+
+  <button onclick="sendMessage()">Send</button>
+</div>
+
+<!-- Inclusion des bibliothèques JavaScript nécessaires pour la communication WebSocket -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.4.0/sockjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+
+<!-- Script JavaScript pour gérer la connexion WebSocket et les messages -->
+<script th:inline="javascript">
+  var stompClient = null;
+
+  // Fonction pour établir la connexion WebSocket
+  function connect() {
+      // Création d'une connexion SockJS
+      var socket = new SockJS('/ws');
+      // Création d'un client STOMP sur la connexion SockJS
+      stompClient = Stomp.over(socket);
+
+      // Connexion au serveur STOMP
+      stompClient.connect({}, function(frame) {
+          console.log('Connected: ' + frame);
+          // Abonnement au sujet des messages publics
+          stompClient.subscribe('/topic/public', function(message) {
+              // Affichage du message reçu
+              showMessage(JSON.parse(message.body));
+          });
+      });
+  }
+
+  // Fonction pour envoyer un message
+  function sendMessage() {
+      // Récupération du contenu du message et du nom d'utilisateur
+      var messageContent = document.getElementById('message').value;
+      var sender = document.getElementById('username').value;
+
+      // Vérification que le contenu du message n'est pas vide et que le client STOMP est connecté
+      if (messageContent && stompClient) {
+          // Création de l'objet message à envoyer
+          var chatMessage = {
+              sender: sender,
+              content: messageContent
+          };
+          // Envoi du message au serveur via STOMP
+          stompClient.send("/app/chat.sendMessage", {}, JSON.stringify(chatMessage));
+          // Réinitialisation du champ de saisie du message
+          document.getElementById('message').value = '';
+      }
+  }
+
+  // Fonction pour afficher un message dans la liste
+  function showMessage(message) {
+      // Récupération de la liste des messages
+      var messageList = document.getElementById('messageList');
+      // Création d'un nouvel élément de liste pour le message
+      var messageElement = document.createElement('li');
+
+      // Ajout du texte du message à l'élément de liste
+      messageElement.appendChild(document.createTextNode(message.sender + ": " + message.content));
+      // Ajout de l'élément de liste à la liste des messages
+      messageList.appendChild(messageElement);
+  }
+
+  // Appel de la fonction de connexion au chargement de la page
+  connect();
+</script>
+</body>
+</html>
